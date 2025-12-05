@@ -68,11 +68,11 @@ if PYKOTOR_AVAILABLE and MDLNode is not None:  # pragma: no cover - runtime side
 # ----------------------------------------------------------------------
 bl_info = {
     "name": "KotOR MDL/MDX Importer",
-    "author": "ChatGPT + Kenny",
-    "version": (0, 2, 0),
+    "author": "ChatGPT + Maui",
+    "version": (1, 0, 0),
     "blender": (4, 0, 0),
     "location": "File > Import > KotOR MDL (.mdl/.mdx)",
-    "description": "Imports KotOR/KotOR2 MDL (binary) with companion MDX geometry, building meshes, armature, and lights.",
+    "description": "Imports KotOR/KotOR2 MDL (binary) with companion MDX geometry, building meshes, armature, weights and textures.",
     "category": "Import-Export",
 }
 
