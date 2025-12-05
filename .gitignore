@@ -1,0 +1,28 @@
+# Python / Blender
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+# Build / temp
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.zip
+*.tar
+*.tar.gz
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# VSCode / IDE
+.vscode/
+.idea/
+
+# Test caches
+.pytest_cache/
