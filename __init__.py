@@ -21,17 +21,22 @@ ADDON_DIR = os.path.dirname(__file__)
 if ADDON_DIR not in sys.path:
     sys.path.append(ADDON_DIR)
 
+# Path to the bundled extractor tools (now stored inside the add-on directory)
+EXTRACTOR_DIR_CANDIDATES = [
+    Path(ADDON_DIR) / "kotor extractor",
+    Path(ADDON_DIR) / "extractor",
+]
+DEFAULT_EXTRACTOR_DIR = next((p for p in EXTRACTOR_DIR_CANDIDATES if p.exists()), EXTRACTOR_DIR_CANDIDATES[0])
+for _extractor_path in [DEFAULT_EXTRACTOR_DIR] + [p for p in EXTRACTOR_DIR_CANDIDATES if p != DEFAULT_EXTRACTOR_DIR]:
+    if _extractor_path.exists() and str(_extractor_path) not in sys.path:
+        sys.path.append(str(_extractor_path))
+
 # Simple debug logger
 DEBUG_LOG = True
 
 def _debug(msg: str) -> None:
     if DEBUG_LOG:
         print(f"[KOTOR IMPORT DEBUG] {msg}")
-
-# Path to the external extractor tools (provided by the user)
-DEFAULT_EXTRACTOR_DIR = Path(r"C:\Users\kenny\Desktop\kotor extractor")
-if DEFAULT_EXTRACTOR_DIR.exists() and str(DEFAULT_EXTRACTOR_DIR) not in sys.path:
-    sys.path.append(str(DEFAULT_EXTRACTOR_DIR))
 
 try:
     from pykotor.resource.formats.mdl.io_mdl import MDLBinaryReader
@@ -293,13 +298,15 @@ def _ensure_material(
 # Extractor helpers
 # ----------------------------------------------------------------------
 def _ensure_extractor_imports():
-    if DEFAULT_EXTRACTOR_DIR.exists() and str(DEFAULT_EXTRACTOR_DIR) not in sys.path:
-        sys.path.append(str(DEFAULT_EXTRACTOR_DIR))
+    for path in [DEFAULT_EXTRACTOR_DIR] + [p for p in EXTRACTOR_DIR_CANDIDATES if p != DEFAULT_EXTRACTOR_DIR]:
+        if path.exists() and str(path) not in sys.path:
+            sys.path.append(str(path))
     try:
         from ResourceManager import ResourceManager  # noqa: F401
         from ResourceTypes import ResourceTypeInfo  # noqa: F401
     except Exception as exc:
-        raise RuntimeError(f"Extractor modules not available at {DEFAULT_EXTRACTOR_DIR}: {exc}") from exc
+        searched_paths = ", ".join(str(p) for p in EXTRACTOR_DIR_CANDIDATES)
+        raise RuntimeError(f"Extractor modules not available (checked: {searched_paths}; default: {DEFAULT_EXTRACTOR_DIR}): {exc}") from exc
 
 
 def _resolve_key_path(game_path: str) -> Path:
