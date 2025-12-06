@@ -33,6 +33,7 @@ for _extractor_path in [DEFAULT_EXTRACTOR_DIR] + [p for p in EXTRACTOR_DIR_CANDI
 
 # Simple debug logger
 DEBUG_LOG = True
+DEEP_ERF_SCAN = str(os.getenv("KOTOR_DEEP_ERF_SCAN", "")).lower() not in ("", "0", "false", "no")
 
 def _debug(msg: str) -> None:
     if DEBUG_LOG:
@@ -214,7 +215,8 @@ def _find_texture_file(tex_name: str, texture_root: Optional[Path]) -> Optional[
 
     stem = Path(tex_name).stem
     preferred = [Path(tex_name), Path(stem)]
-    exts = [".png", ".tga", ".dds", ".jpg", ".jpeg", ".bmp", ".tiff"]
+    # Look for converted PNG first, then source texture formats
+    exts = [".png", ".tpc", ".tga", ".bmp"]
 
     for cand in preferred:
         path_exact = texture_root / cand
@@ -352,32 +354,49 @@ def _gather_textures_from_mdl(mdl_path: Path, mdx_path: Optional[Path]) -> Set[s
 
 
 def _convert_to_png(src: Path, dst_dir: Path) -> Path:
-    dst = dst_dir / (src.stem + ".png")
     ext = src.suffix.lower()
-    if dst.exists():
-        return dst
-    if ext == ".tpc":
-        try:
-            _ensure_extractor_imports()
-            from TPCToPNG import tpc_to_png  # type: ignore
+    if ext in (".tpc", ".tga", ".bmp"):
+        dst = dst_dir / (src.stem + ".png")
+        if dst.exists():
+            return dst
+        if ext == ".tpc":
+            try:
+                _ensure_extractor_imports()
+                from TPCToPNG import tpc_to_png  # type: ignore
 
-            return tpc_to_png(src, dst)
-        except Exception:
-            pass
-    try:
-        from PIL import Image  # type: ignore
-    except Exception:
-        shutil.copy(src, dst)
-        return dst
+                return tpc_to_png(src, dst)
+            except Exception:
+                return src
+        else:
+            # Convert TGA/BMP to PNG if Pillow is available; otherwise fall back to original
+            try:
+                from PIL import Image  # type: ignore
+                with Image.open(src) as im:
+                    im = im.convert("RGBA")
+                    im.save(dst)
+                return dst
+            except Exception:
+                return src
 
+    # For other formats, keep the original file
+    return src
+
+
+def _cleanup_temp_texture_caches(keep_root: Path) -> None:
+    """
+    Remove temp import caches except for the current one.
+    """
     try:
-        with Image.open(src) as im:
-            im = im.convert("RGBA")
-            im.save(dst)
-        return dst
+        base = Path(tempfile.gettempdir())
+        keep = keep_root.resolve()
+        for path in base.glob("kotor_import_*"):
+            try:
+                if path.resolve() != keep and path.is_dir():
+                    shutil.rmtree(path, ignore_errors=True)
+            except Exception:
+                continue
     except Exception:
-        shutil.copy(src, dst)
-    return dst
+        pass
 
 
 def _export_textures(
@@ -398,7 +417,7 @@ def _export_textures(
     if override_dir and override_dir.exists():
         try:
             for f in override_dir.iterdir():
-                if f.is_file() and f.suffix.lower() in (".tpc", ".tga", ".dds", ".png"):
+                if f.is_file() and f.suffix.lower() in (".tpc", ".tga", ".bmp"):
                     override_candidates.append(f)
         except Exception:
             pass
@@ -415,14 +434,18 @@ def _export_textures(
                 if p in erf_paths:
                     continue
                 erf_paths.append(p)
-        for p in game_root.rglob("*.erf"):
-            if p in erf_paths:
-                continue
-            erf_paths.append(p)
-        for p in game_root.rglob("*.rim"):
-            if p in erf_paths:
-                continue
-            erf_paths.append(p)
+        patch_erf = game_root / "patch.erf"
+        if patch_erf.exists() and patch_erf not in erf_paths:
+            erf_paths.append(patch_erf)
+        if DEEP_ERF_SCAN:
+            for p in game_root.rglob("*.erf"):
+                if p in erf_paths:
+                    continue
+                erf_paths.append(p)
+            for p in game_root.rglob("*.rim"):
+                if p in erf_paths:
+                    continue
+                erf_paths.append(p)
 
     _debug(f"ERF search order: {[str(p) for p in erf_paths]}")
 
@@ -445,7 +468,7 @@ def _export_textures(
         exported = None
         # 1) Try ERFs (TexturePacks preferred)
         if exported is None and erf_paths:
-            for ext in ("tpc", "dds", "tga"):
+            for ext in ("tpc", "tga", "bmp"):
                 type_id = ResourceTypeInfo.get_typeid(ext)
                 exported = export_from_erf(tex, type_id)
                 if exported:
@@ -463,7 +486,7 @@ def _export_textures(
 
         # 3) Fall back to BIF via key
         if exported is None:
-            for ext in ("tpc", "dds", "tga"):
+            for ext in ("tpc", "tga", "bmp"):
                 type_id = ResourceTypeInfo.get_typeid(ext)
                 try:
                     _debug(f"Trying BIF export for {tex}.{ext}")
@@ -595,6 +618,7 @@ class KOTOR_OT_import_model(Operator):
         override_dir = game_root / "Override" if game_root and game_root.is_dir() else None
         missing_tex = _export_textures(rm, texture_names, tex_dir, override_dir=override_dir, game_root=game_root)
         wm.kotor_last_tex_dir = str(tex_dir)
+        _cleanup_temp_texture_caches(temp_root)
 
         try:
             bpy.ops.import_scene.kotor_mdl(

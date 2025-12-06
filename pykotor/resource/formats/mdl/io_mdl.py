@@ -1710,37 +1710,38 @@ class MDLBinaryReader:
 
             node.mesh.vertex_positions = bin_node.trimesh.vertices
 
-            if bool(bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.NORMAL) and self._reader_ext:
+            has_normals = bool(bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.NORMAL) and self._reader_ext
+            has_uv1 = bool(bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.TEXTURE1) and self._reader_ext
+            has_uv2 = bool(bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.TEXTURE2) and self._reader_ext
+
+            if has_normals:
                 node.mesh.vertex_normals = []
-            if bool(bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.TEXTURE1) and self._reader_ext:
+            if has_uv1:
                 node.mesh.vertex_uv1 = []
-            if bool(bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.TEXTURE2) and self._reader_ext:
+            if has_uv2:
                 node.mesh.vertex_uv2 = []
 
             mdx_offset: int = bin_node.trimesh.mdx_data_offset
             mdx_block_size: int = bin_node.trimesh.mdx_data_size
-            assert node.mesh.vertex_normals is not None
             for i in range(len(bin_node.trimesh.vertices)):
-                if bool(bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.NORMAL) and self._reader_ext:
+                if has_normals:
                     self._reader_ext.seek(mdx_offset + i * mdx_block_size + bin_node.trimesh.mdx_normal_offset)
                     x, y, z = (
                         self._reader_ext.read_single(),
                         self._reader_ext.read_single(),
                         self._reader_ext.read_single(),
                     )
-                    node.mesh.vertex_normals.append(Vector3(x, y, z))
+                    node.mesh.vertex_normals.append(Vector3(x, y, z))  # type: ignore[union-attr]
 
-                if bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.TEXTURE1 and self._reader_ext:
-                    assert node.mesh.vertex_uv1 is not None
+                if has_uv1:
                     self._reader_ext.seek(mdx_offset + i * mdx_block_size + bin_node.trimesh.mdx_texture1_offset)
                     u, v = (
                         self._reader_ext.read_single(),
                         self._reader_ext.read_single(),
                     )
-                    node.mesh.vertex_uv1.append(Vector2(u, v))
+                    node.mesh.vertex_uv1.append(Vector2(u, v))  # type: ignore[union-attr]
 
-                if bin_node.trimesh.mdx_data_bitmap & _MDXDataFlags.TEXTURE2 and self._reader_ext:
-                    assert node.mesh.vertex_uv2 is not None
+                if has_uv2:
                     self._reader_ext.seek(
                         mdx_offset + i * mdx_block_size + bin_node.trimesh.mdx_texture2_offset,
                     )
@@ -1748,7 +1749,7 @@ class MDLBinaryReader:
                         self._reader_ext.read_single(),
                         self._reader_ext.read_single(),
                     )
-                    node.mesh.vertex_uv2.append(Vector2(u, v))
+                    node.mesh.vertex_uv2.append(Vector2(u, v))  # type: ignore[union-attr]
 
             for bin_face in bin_node.trimesh.faces:
                 face = MDLFace()
@@ -1760,7 +1761,12 @@ class MDLBinaryReader:
                 face.a2 = bin_face.adjacent2
                 face.a3 = bin_face.adjacent3
                 face.normal = bin_face.normal
-                face.coefficient = int(bin_face.plane_coefficient)
+                # Some models contain NaN plane coefficients; guard to avoid crashing on import.
+                plane_coeff = bin_face.plane_coefficient
+                try:
+                    face.coefficient = int(plane_coeff)
+                except Exception:
+                    face.coefficient = 0
                 face.material = bin_face.material
 
         if bin_node.skin:
