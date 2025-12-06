@@ -6,7 +6,7 @@ Blender add-on to browse KotOR models directly from `chitin.key`, extract MDL/MD
 
 - Browse models from `chitin.key` (unique resrefs, no duplicate MDL/MDX entries) in a 3D Viewport N-panel.
 - Extract selected model (MDL/MDX) and referenced textures; supports `.tpc/.tga/.bmp` with TPC converted to PNG for Blender use.
-- Imports meshes, lights, walkmesh collision, optional non-render meshes. No empty placeholders; clean scene output.
+- Imports meshes, walkmesh collision, optional non-render meshes. No empty placeholders; clean scene output.
 - Texture caches cleaned after each import (keeps only the latest import’s cache). Optional shallow ERF scan by default for faster/lower-memory imports; set `KOTOR_DEEP_ERF_SCAN=1` to re-enable full recursive ERF/RIM search.
 
 ## Installation
@@ -27,7 +27,7 @@ Blender add-on to browse KotOR models directly from `chitin.key`, extract MDL/MD
 
 ## Notes / Limitations
 
-- Animations are not imported (fast load mode).  
+- Animations are not imported (nor supported, yet) (fast load mode).  
 - Texture search order: `TexturePacks/swpc_tex_tpa.erf` → `TexturePacks/swpc_tex_gui.erf`/`swpc_tex_tpb.erf`/`swpc_tex_tpc.erf` → `patch.erf` → (if enabled) other ERF/RIM under the game path → `Override` → BIF fallback.  
 - You must supply your own game files; none are included.
 
