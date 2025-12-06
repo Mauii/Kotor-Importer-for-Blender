@@ -9,7 +9,7 @@ Blender addon to browse KotOR models directly from `chitin.key`, extract MDL/MDX
 
 - Browse models from `chitin.key` (unique resrefs, no duplicate MDL/MDX entries) in a 3D Viewport N-panel.
 - Extract selected model (MDL/MDX) and referenced textures (TPC/DDS/TGA → PNG) from TexturePacks (`swpc_tex_tpa.erf`) and other ERF/RIM/Override sources.
-- Import meshes, lights, walkmesh collision, optional non-render meshes.
+- Import meshes, walkmesh collision, optional non-render meshes.
 - No empties; clean scene output. Texture cache retained; you can copy PNGs after import.
 
 ## Installation
